@@ -10,6 +10,14 @@ import UIKit
 
 class Cell: UITableViewCell {
 
+    //1
+    
+    @IBOutlet weak var nameLabel: UILabel!
+    @IBOutlet weak var thumbnail: UIImageView!
+    @IBOutlet weak var tagLabel: UILabel!
+    @IBOutlet weak var votesLabel: UILabel!
+    
+    
     override func awakeFromNib() {
         super.awakeFromNib()
         // Initialization code

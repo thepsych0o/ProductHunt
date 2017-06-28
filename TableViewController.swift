@@ -7,89 +7,173 @@
 //
 
 import UIKit
+import SwiftyJSON
+import BTNavigationDropdownMenu
 
 class TableViewController: UITableViewController {
 
+    var names = [String]()
+    var images = [Data]()
+    var tags = [String]()
+    var count = 0
+    var votes = [Int]()
+    let categories = ["tech", "games", "books", "podcasts"]
+    var ids = [String]()
+    
+    var tag = String()
+    var name = String()
+    var getIt = String()
+    var sc = Data()
+    
+
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
-
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem()
+        
+        
+        let refreshControl = UIRefreshControl()
+        
+        refreshControl.attributedTitle = NSAttributedString(string: "Pull to refresh")
+        refreshControl.addTarget(self, action: Selector(("refresh:")), for: UIControlEvents.valueChanged)
+        
+        tableView.isHidden = true
+        
+        let menuView = BTNavigationDropdownMenu(title: categories[0], items: categories as [AnyObject])
+        navigationItem.titleView = menuView
+        menuView.didSelectItemAtIndexHandler = {[weak self] (indexPath: Int) -> () in
+                self!.getData(category: (self!.categories[indexPath]))
+        }
+        
+        self.refreshControl?.addTarget(self, action: Selector(("refresh:")), for: UIControlEvents.valueChanged)
+        
+        getData(category: "tech")
     }
 
+    func refresh(sender:AnyObject) {
+        print("xuy")
+    }
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
 
-    // MARK: - Table view data source
-
-    override func numberOfSections(in tableView: UITableView) -> Int {
+    /*override func numberOfSections(in tableView: UITableView) -> Int {
         // #warning Incomplete implementation, return the number of sections
         return 0
-    }
+    }*/
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        // #warning Incomplete implementation, return the number of rows
-        return 0
+        return count
     }
-
-    /*
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "reuseIdentifier", for: indexPath)
-
-        // Configure the cell...
-
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath) as! Cell
+        
+        cell.nameLabel.text = names[indexPath.row]
+        cell.thumbnail.image = UIImage(data: images[indexPath.row])
+        cell.tagLabel.text = tags[indexPath.row]
+        cell.votesLabel.text = String(votes[indexPath.row])
+        
         return cell
     }
-    */
-
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
+    
+    override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat
+    {
+        return 100.0
     }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        onTap(id: ids[indexPath.row])
     }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
+    
+    func getData(category: String) {
+        clearAll()
+        let url = URL(string: "https://api.producthunt.com/v1/categories/" + category + "/posts")
+        var request = URLRequest(url: url!)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Bearer 591f99547f569b05ba7d8777e2e0824eea16c440292cce1f8dfb3952cc9937ff", forHTTPHeaderField: "Authorization")
+        request.addValue("api.producthunt.com", forHTTPHeaderField: "Host")
+        let config = URLSessionConfiguration.default
+        let session = URLSession(configuration: config)
+        
+        let task = session.dataTask(with: request, completionHandler: {(data, response, error) in
+            do {
+                let json = JSON(data: data!)
+                let posts = json["posts"].array!
+                
+                print("number of posts:" + String(posts.count))
+                
+                if (posts.count != 0)
+                {
+                    for i in 0...posts.count-1
+                    {
+                        let post = posts[i]
+                        self.ids.append(post["id"].stringValue)
+                        self.names.append((post["name"].stringValue))
+                        print(self.names[i])
+                        self.tags.append(post["tagline"].stringValue)
+                        self.votes.append(post["votes_count"].int!)
+                        let thumbnail = post["thumbnail"].dictionary
+                        let dt = try Data(contentsOf: URL(string: (thumbnail!["image_url"]?.stringValue)!)!)
+                        self.images.append(dt)
+                    }
+                }
+                self.count = posts.count
+                DispatchQueue.main.async {
+                    self.tableView.isHidden = false
+                    self.tableView.reloadData()
+                }
+            }
+            catch
+            {
+                
+            }
+        });
+        task.resume()
     }
-    */
 
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
+    func onTap(id: String)
+    {        let url = URL(string: "https://api.producthunt.com/v1/posts/" + id)
+        var request = URLRequest(url: url!)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Bearer 591f99547f569b05ba7d8777e2e0824eea16c440292cce1f8dfb3952cc9937ff", forHTTPHeaderField: "Authorization")
+        request.addValue("api.producthunt.com", forHTTPHeaderField: "Host")
+        let config = URLSessionConfiguration.default
+        let session = URLSession(configuration: config)
+        
+        let task = session.dataTask(with: request, completionHandler: {(data, response, error) in
+            do {
+                let json = JSON(data: data!)
+                let post = json["post"].dictionary
+                let screenshots = post?["screenshot_url"]?.dictionary
+                
+                self.sc = try Data(contentsOf: URL(string: (screenshots!["300px"]!.stringValue))!)
+                self.getIt = (post?["redirect_url"]?.stringValue)!
+                print("getIt: ", self.getIt)
+                let vc = self.storyboard!.instantiateViewController(withIdentifier: "DetailedInformationViewController")
+                (vc as! DetailedInformationViewController).setData(name: post!["name"]!.stringValue, tag: post!["tagline"]!.stringValue, sc: self.sc, getIt: self.getIt)
+                self.present(vc, animated: false, completion: nil)
+                
+            }
+            catch
+            {
+                
+            }
+        });
+        task.resume()
+        
     }
-    */
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
+    
+    func clearAll()
+    {
+        ids.removeAll()
+        names.removeAll()
+        images.removeAll()
+        votes.removeAll()
+        tags.removeAll()
+        count = 0
     }
-    */
-
 }
