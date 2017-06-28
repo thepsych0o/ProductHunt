@@ -18,6 +18,7 @@ class TableViewController: UITableViewController {
     var count = 0
     var votes = [Int]()
     let categories = ["tech", "games", "books", "podcasts"]
+    var currentCategory = "tech"
     var ids = [String]()
     
     var tag = String()
@@ -29,27 +30,23 @@ class TableViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        
-        let refreshControl = UIRefreshControl()
-        
-        refreshControl.attributedTitle = NSAttributedString(string: "Pull to refresh")
-        refreshControl.addTarget(self, action: Selector(("refresh:")), for: UIControlEvents.valueChanged)
-        
         tableView.isHidden = true
         
         let menuView = BTNavigationDropdownMenu(title: categories[0], items: categories as [AnyObject])
         navigationItem.titleView = menuView
         menuView.didSelectItemAtIndexHandler = {[weak self] (indexPath: Int) -> () in
+                self?.currentCategory = (self?.categories[indexPath])!
                 self!.getData(category: (self!.categories[indexPath]))
         }
-        
-        self.refreshControl?.addTarget(self, action: Selector(("refresh:")), for: UIControlEvents.valueChanged)
-        
-        getData(category: "tech")
+        getData(category: currentCategory)
+        self.refreshControl?.addTarget(self, action: #selector(TableViewController.handleRefresh(_:)), for: UIControlEvents.valueChanged)
     }
+    
+    func handleRefresh(_ refreshControl: UIRefreshControl) {
 
-    func refresh(sender:AnyObject) {
-        print("xuy")
+        getData(category: currentCategory)
+        self.tableView.reloadData()
+        refreshControl.endRefreshing()
     }
     
     override func didReceiveMemoryWarning() {
